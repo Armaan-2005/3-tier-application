@@ -12,7 +12,9 @@
 A hands-on AWS infrastructure project demonstrating a three-tier web application architecture using Terraform and Jenkins. The project provisions an Application Load Balancer, EC2 instances running Apache2, and an Amazon RDS database. Terraform modules organize the infrastructure, while Jenkins automates the provisioning workflow.
 
 [Repository](https://github.com/Armaan-2005/2-tier-application) · [Architecture](#architecture) · [Project Structure](#project-structure) · [Setup](#run-the-project)
+
 </div>
+
 ---
 
 ## Contents
