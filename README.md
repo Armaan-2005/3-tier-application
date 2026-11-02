@@ -1,115 +1,117 @@
-<div align="center">
-
-# Two-Tier AWS Web Application
+# Three-Tier AWS Web Application
 
 ### Terraform • Jenkins • EC2 • Apache2 • ALB • Amazon RDS
 
-[![AWS](https://img.shields.io/badge/AWS-Cloud-orange?logo=amazonaws)](https://aws.amazon.com/)
-[![Terraform](https://img.shields.io/badge/Terraform-IaC-844FBA?logo=terraform)](https://www.terraform.io/)
-[![Jenkins](https://img.shields.io/badge/Jenkins-CI%2FCD-D24939?logo=jenkins)](https://www.jenkins.io/)
-[![Apache](https://img.shields.io/badge/Apache2-Web%20Server-D22128?logo=apache)](https://httpd.apache.org/)
+![AWS](https://img.shields.io/badge/AWS-Cloud-orange?logo=amazonaws)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-844FBA?logo=terraform)
+![Jenkins](https://img.shields.io/badge/Jenkins-CI%2FCD-D24939?logo=jenkins)
+![Apache](https://img.shields.io/badge/Apache2-Web%20Server-D22128?logo=apache)
 
-**A hands-on AWS infrastructure project using Terraform modules to provision a website tier on EC2, an Application Load Balancer, and a managed RDS database. Jenkins automates the Terraform workflow, while Amazon S3 stores Terraform remote state.**
+A hands-on AWS infrastructure project demonstrating a three-tier web application architecture using Terraform and Jenkins. The project provisions an Application Load Balancer, EC2 instances running Apache2, and an Amazon RDS database. Terraform modules organize the infrastructure, while Jenkins automates the provisioning workflow.
 
-[Repository](https://github.com/Armaan-2005/2-tier-application) · [Architecture](#-architecture) · [Structure](#-project-structure) · [Setup](#-run-the-project)
-
-</div>
+[Repository](https://github.com/Armaan-2005/2-tier-application) · [Architecture](#architecture) · [Project Structure](#project-structure) · [Setup](#run-the-project)
 
 ---
 
 ## Contents
 
-- [Project Overview](#-project-overview)
-- [Architecture](#-architecture)
-- [AWS Components](#-aws-components)
-- [Project Structure](#-project-structure)
-- [Module Relationships](#-terraform-module-relationships)
-- [Jenkins Pipeline](#-jenkins-pipeline)
-- [Prerequisites](#-prerequisites)
-- [Run the Project](#-run-the-project)
-- [Security](#-security-notes)
-- [Cleanup](#-cleanup)
-- [Learning Outcomes](#-learning-outcomes)
+- [Project Overview](#project-overview)
+- [Architecture](#architecture)
+- [AWS Components](#aws-components)
+- [Project Structure](#project-structure)
+- [Terraform Module Relationships](#terraform-module-relationships)
+- [Jenkins Pipeline](#jenkins-pipeline)
+- [Prerequisites](#prerequisites)
+- [Run the Project](#run-the-project)
+- [Security Notes](#security-notes)
+- [Cleanup](#cleanup)
+- [Learning Outcomes](#learning-outcomes)
+- [Future Improvements](#future-improvements)
 
 ## Project Overview
 
-This project demonstrates a **two-tier web architecture on AWS** managed with **Terraform** and orchestrated through **Jenkins**.
+This project demonstrates how to deploy a scalable and modular AWS web application infrastructure using Infrastructure as Code (IaC).
 
-The web tier uses EC2 instances running Apache2 to serve an HTML page. An **Application Load Balancer (ALB)** provides a browser-facing entry point and forwards HTTP traffic to registered EC2 targets. The data tier uses **Amazon RDS** in private subnets. Terraform state is stored in an **Amazon S3 remote backend**.
+The architecture consists of three main components:
 
-### Goals
+1. **Load Balancing Tier:** An Application Load Balancer receives incoming HTTP requests and distributes them across healthy EC2 instances.
+2. **Web/Application Tier:** EC2 instances running Apache2 serve the HTML website and can communicate with the database when required.
+3. **Database Tier:** Amazon RDS provides managed relational database infrastructure in private subnets.
 
-- Provision AWS resources using Infrastructure as Code.
-- Organize infrastructure into reusable Terraform modules.
-- Host an HTML website using Apache2 on EC2.
-- Route web traffic through an ALB target group.
-- Keep the database tier separate from the web tier.
-- Store Terraform state remotely in S3.
-- Automate Terraform operations with a Jenkins pipeline.
+Terraform provisions and manages the AWS infrastructure using reusable modules. Jenkins automates the Terraform workflow, and Amazon S3 stores the Terraform remote state.
+
+### Project Goals
+
+- Deploy a three-tier AWS application architecture.
+- Provision infrastructure using Terraform.
+- Organize infrastructure using reusable Terraform modules.
+- Host a website using Apache2 on EC2.
+- Distribute incoming traffic through an Application Load Balancer.
+- Configure Amazon RDS in private subnets.
+- Store Terraform state remotely in Amazon S3.
+- Automate Terraform operations using Jenkins.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    VISITOR["🌐 Website Visitor"] --> ALB["Application Load Balancer"]
-    ALB --> EC2A["EC2 Instance A<br/>Apache2 + HTML"]
-    ALB --> EC2B["EC2 Instance B<br/>Apache2 + HTML"]
-    EC2A --> RDS["Amazon RDS<br/>Database Tier"]
-    EC2B --> RDS
+    USER["Website Visitor"] --> ALB["Application Load Balancer"]
+
+    subgraph AWS["AWS Cloud"]
+        subgraph VPC["Amazon VPC"]
+            ALB --> EC2A["EC2 Instance A<br/>Apache2 + HTML"]
+            ALB --> EC2B["EC2 Instance B<br/>Apache2 + HTML"]
+
+            EC2A --> RDS["Amazon RDS<br/>Database Tier"]
+            EC2B --> RDS
+        end
+    end
 
     DEV["Developer"] --> GIT["GitHub Repository"]
     GIT --> JENKINS["Jenkins Pipeline"]
     JENKINS --> TF["Terraform"]
-    TF --> VPC["VPC / Subnets"]
-    TF --> SG["Security Groups"]
-    TF --> ALB
-    TF --> EC2A
-    TF --> EC2B
-    TF --> RDS
-    TF -. "Terraform state" .-> S3["Amazon S3 Backend"]
+    TF --> VPC
+    TF -. "Remote State" .-> S3["Amazon S3 Backend"]
 ```
 
-<details>
-<summary><strong> How the architecture works</strong></summary>
+### How the Architecture Works
 
-1. A visitor opens the ALB DNS address in a browser.
-2. The ALB listener receives the HTTP request and forwards it to a healthy registered EC2 target.
-3. Apache2 on the selected EC2 instance serves the HTML page.
-4. When application functionality requires persistence, the web tier can communicate with RDS over the VPC network.
-5. Terraform uses S3 to store infrastructure state separately from application traffic.
-6. Jenkins runs the configured Terraform stages to provision and inspect infrastructure.
+1. A visitor accesses the website through the ALB DNS address.
+2. The ALB receives the HTTP request and forwards it to a healthy EC2 instance.
+3. Apache2 on the selected EC2 instance serves the HTML website.
+4. The application tier communicates with Amazon RDS when database operations are required.
+5. Terraform provisions the infrastructure and manages its state using Amazon S3.
+6. Jenkins executes the Terraform pipeline to provision and inspect the infrastructure.
 
-**Important:** S3 is the Terraform state backend, not the website host. The HTML page is served by Apache2 on EC2.
+**Note:** The ALB is the traffic entry point. The EC2 instances form the web/application tier, and RDS forms the database tier. Amazon S3 is used for Terraform state storage, not website hosting.
 
-</details>
+## AWS Components
 
-## ☁️ AWS Components
-
-| Component | Role |
+| Component | Purpose |
 |---|---|
-| **Amazon VPC** | Network isolation for project resources |
-| **Public subnets** | Host the internet-facing ALB and, in this configuration, EC2 web instances |
-| **Private subnets** | Provide subnet placement for RDS |
-| **Security Groups** | Control traffic between ALB, EC2 and RDS |
-| **Amazon EC2** | Runs Apache2 and serves the HTML page |
-| **Apache2** | HTTP web server |
-| **Application Load Balancer** | Routes incoming HTTP requests to registered targets |
-| **Target Group** | Registers EC2 targets and checks their health |
-| **Amazon RDS** | Managed relational database infrastructure |
-| **Amazon S3** | Stores Terraform remote state |
-| **Terraform** | Defines and provisions AWS infrastructure |
-| **Jenkins** | Automates Terraform stages |
+| Amazon VPC | Provides network isolation |
+| Public Subnets | Host the internet-facing ALB and EC2 instances in this configuration |
+| Private Subnets | Provide network placement for RDS |
+| Security Groups | Control traffic between infrastructure components |
+| Amazon EC2 | Runs Apache2 and serves the website |
+| Apache2 | Web server for the HTML application |
+| Application Load Balancer | Distributes incoming traffic across EC2 instances |
+| Target Group | Registers EC2 instances and monitors their health |
+| Amazon RDS | Provides managed relational database infrastructure |
+| Amazon S3 | Stores Terraform remote state |
+| Terraform | Provisions and manages AWS infrastructure |
+| Jenkins | Automates Terraform operations |
 
-##  Project Structure
+## Project Structure
 
 ```text
-2-tier-application/
+3-tier-application/
 ├── backend/
-│   └── Terraform configuration for the S3 state backend
+│   └── Terraform configuration for S3 remote state
 │
 ├── modules/
 │   ├── vpc/
-│   │   └── VPC, subnets, routing and key-pair-related resources
+│   │   └── VPC, subnets, routing and key-pair resources
 │   ├── sg/
 │   │   └── Security groups for EC2 and RDS
 │   ├── ec2/
@@ -119,161 +121,95 @@ flowchart TD
 │   └── rds/
 │       └── RDS and database subnet configuration
 │
-├── main.tf       # AWS provider, backend and module connections
+├── main.tf       # Root configuration and module connections
 ├── output.tf     # ALB DNS URL output
-├── Jenkinsfile   # Jenkins pipeline for Terraform
+├── Jenkinsfile   # Jenkins pipeline
 └── .gitignore    # Files excluded from Git
 ```
 
-<details>
-<summary><strong>📄 main.tf — Root Terraform configuration</strong></summary>
-
-The root configuration declares the AWS provider and S3 backend, then connects five modules:
-
-- `vpc` — provides the network, subnet IDs and key-pair reference.
-- `sg` — receives the VPC ID and exposes security group IDs.
-- `ec2` — receives subnet IDs, a security group and key-pair name; the root configuration references two EC2 target IDs.
-- `alb` — receives the VPC, subnet and security-group values, along with both EC2 target IDs.
-- `rds` — receives the database security group and private subnet IDs.
-
-This keeps the high-level architecture in one place while separating individual resource definitions into modules.
-
-</details>
-
-<details>
-<summary><strong>📁 modules/vpc — Networking</strong></summary>
-
-Supplies the VPC and subnet resources referenced by the other modules. The root configuration uses public subnet IDs for the ALB and EC2 tier, and private subnet IDs for RDS.
-
-</details>
-
-<details>
-<summary><strong>📁 modules/sg — Security groups</strong></summary>
-
-Creates security groups and exports IDs consumed by EC2 and RDS. A secure configuration should allow web traffic from the ALB to EC2 and database traffic only from the intended application tier. SSH should be restricted to trusted sources.
-
-</details>
-
-<details>
-<summary><strong>📁 modules/ec2 — Apache2 and HTML</strong></summary>
-
-Creates the EC2 web instances using subnet, security-group and key-pair values supplied by the other modules. Apache2 serves the HTML page. The exact install and file-copy mechanism depends on the EC2 module's bootstrap configuration.
-
-</details>
-
-<details>
-<summary><strong>📁 modules/alb — Load balancing</strong></summary>
-
-Configures the load balancer and its target registration. The root configuration passes the two EC2 instance IDs and the public subnet IDs. The ALB DNS name is exposed as a Terraform output.
-
-</details>
-
-<details>
-<summary><strong>📁 modules/rds — Database tier</strong></summary>
-
-Creates the RDS resources using the database security group and private subnet IDs. The database should not be publicly accessible unless there is a specific requirement; access should be restricted to the required sources and database port.
-
-</details>
-
-<details>
-<summary><strong>📁 backend — S3 remote state</strong></summary>
-
-The root `main.tf` configures the S3 backend with these values:
-
-- **Bucket:** `backend-s3-2tierapps`
-- **State key:** `2-tier application/terraform.tfstate`
-- **Region:** `us-east-1`
-
-The backend bucket must exist before Terraform can initialize the root configuration against it. The Jenkins pipeline first works in `backend/`, then initializes the root configuration.
-
-S3 stores Terraform state metadata; it does not serve the website or store the live RDS database.
-
-</details>
-
-<details>
-<summary><strong>📄 output.tf — Website URL</strong></summary>
-
-The `load_balancer_dns` output formats the ALB DNS name as an HTTP URL.
-
-```bash
-terraform output load_balancer_dns
-```
-
-Open the returned URL in a browser to test the load balancer and its registered targets.
-
-</details>
-
-## 🔗 Terraform Module Relationships
+## Terraform Module Relationships
 
 ```mermaid
 flowchart LR
-    VPC["vpc module"] --> SG["sg module"]
-    VPC --> EC2["ec2 module"]
+    VPC["VPC Module"] --> SG["Security Group Module"]
+    VPC --> EC2["EC2 Module"]
     SG --> EC2
-    VPC --> ALB["alb module"]
+    VPC --> ALB["ALB Module"]
     SG --> ALB
     EC2 --> ALB
-    VPC --> RDS["rds module"]
+    VPC --> RDS["RDS Module"]
     SG --> RDS
 ```
 
-Terraform uses these module input/output references to determine dependencies and resource creation order.
+Terraform uses module input and output references to determine dependencies and resource creation order.
 
-## 🔄 Jenkins Pipeline
+### Module Responsibilities
 
-The `Jenkinsfile` defines a declarative pipeline using Windows `bat` steps and the Jenkins credential entry `AWS_credentials`.
+- **VPC:** Creates the VPC, subnets, routing resources and key-pair-related resources.
+- **Security Groups:** Defines the permitted traffic between the ALB, EC2 instances and RDS.
+- **EC2:** Creates the web instances and configures Apache2 to serve the HTML page.
+- **ALB:** Creates the load balancer, listener, target group and target registrations.
+- **RDS:** Creates the managed database and its subnet configuration.
+
+The root Terraform configuration connects the modules using their input and output values.
+
+## Jenkins Pipeline
+
+The Jenkinsfile defines a declarative pipeline that automates Terraform operations using Windows `bat` commands and the Jenkins credential entry `AWS_credentials`.
 
 ```mermaid
 flowchart TD
-    A["Start build"] --> B["Backend Initialization"]
+    A["Start Build"] --> B["Backend Initialization"]
     B --> C["Terraform Initialization"]
-    C --> D["Terraform fmt"]
-    D --> E["Terraform validate"]
-    E --> F["Terraform plan -out=tfplan"]
-    F --> G["Terraform apply tfplan"]
-    G --> H["Terraform state list"]
-    H --> I["Terraform output"]
-    I --> J["Build result"]
+    C --> D["Terraform Format"]
+    D --> E["Terraform Validate"]
+    E --> F["Terraform Plan"]
+    F --> G["Terraform Apply"]
+    G --> H["Terraform State Check"]
+    H --> I["Terraform Output"]
+    I --> J["Build Complete"]
 ```
+
+### Pipeline Stages
 
 | Stage | Purpose |
 |---|---|
-| Backend Initialization | Runs Terraform initialization and apply in `backend/` |
-| Terraform Initialization | Initializes the root configuration and formats Terraform |
-| Terraform Planning | Validates configuration and saves a plan |
-| Terraform Execution | Applies the saved plan |
-| Terraform State Check | Lists managed resources and prints outputs |
+| Backend Initialization | Initializes and applies the Terraform backend configuration |
+| Terraform Initialization | Initializes the root configuration |
+| Terraform Planning | Formats, validates and creates the Terraform plan |
+| Terraform Execution | Applies the saved Terraform plan |
+| Terraform State Check | Lists managed resources and displays outputs |
 
-<details>
-<summary><strong>Pipeline notes</strong></summary>
+### Pipeline Requirements
 
-- The Jenkins agent must support Windows `bat` commands.
-- Terraform must be installed and available on the agent's `PATH`.
-- The `AWS_credentials` entry must exist in Jenkins.
-- The backend bucket must be created before the root backend can use it.
-- This pipeline automates Terraform infrastructure operations; it does not itself show a separate HTML release stage that copies changed files to EC2.
+- Jenkins agent with Windows `bat` support.
+- Terraform installed and available on the agent's PATH.
+- AWS credentials configured in Jenkins.
+- Jenkins credential entry named `AWS_credentials`.
+- Existing S3 backend bucket.
+- Git access to the project repository.
 
-</details>
+The pipeline automates infrastructure provisioning. It does not include a separate application deployment stage for copying updated HTML files to EC2.
 
-## 🧰 Prerequisites
+## Prerequisites
 
-- AWS account with permissions for the required VPC, EC2, ALB, RDS, security-group and S3 resources.
-- Terraform CLI installed on the Jenkins agent.
+- AWS account with permissions to create VPC, EC2, ALB, RDS, security groups and S3 resources.
+- Terraform CLI.
 - Jenkins with AWS credential binding support.
-- A Jenkins credentials entry named `AWS_credentials`.
-- Git access to this repository.
-- A configured S3 backend bucket, or permission to provision it using the backend configuration.
+- Git.
+- An S3 bucket for Terraform remote state.
+- A configured Jenkins AWS credential entry.
 
-## 🚀 Run the Project
+## Run the Project
 
-### 1. Clone the repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Armaan-2005/2-tier-application.git
 cd 2-tier-application
 ```
 
-### 2. Configure AWS credentials
+### 2. Configure AWS Credentials
 
 For local testing:
 
@@ -282,11 +218,13 @@ aws configure
 aws sts get-caller-identity
 ```
 
-For Jenkins, configure the credential entry referenced by the pipeline. Never hardcode access keys in Terraform or commit them to Git.
+For Jenkins, configure the AWS credential entry referenced by the pipeline.
 
-### 3. Provision the backend
+Never hardcode AWS access keys in Terraform files or commit them to Git.
 
-Review the Terraform configuration in `backend/`:
+### 3. Provision the Terraform Backend
+
+Navigate to the backend directory:
 
 ```bash
 cd backend
@@ -300,9 +238,9 @@ If the backend resources do not already exist, review and apply the plan:
 terraform apply
 ```
 
-Avoid trying to create the S3 bucket again if it already exists.
+Avoid recreating the S3 bucket if it already exists.
 
-### 4. Initialize and validate the root configuration
+### 4. Initialize the Root Configuration
 
 ```bash
 cd ..
@@ -314,79 +252,96 @@ terraform plan
 
 Review the plan before applying.
 
-### 5. Provision AWS infrastructure
+### 5. Provision AWS Infrastructure
 
 ```bash
 terraform apply
 ```
 
-Confirm the proposed changes. AWS resources can incur charges.
+Confirm the proposed changes.
 
-### 6. Open the website
+AWS resources can incur charges while they are running.
+
+### 6. Access the Website
 
 ```bash
 terraform output load_balancer_dns
 ```
 
-Open the returned URL in a browser. If the page does not load, check the ALB listener, target health, Apache2 service status and security-group rules.
+Open the returned URL in a browser.
 
-### 7. Run through Jenkins
+If the website does not load, check:
 
-Configure a Jenkins job to use this repository and its `Jenkinsfile`. Verify that Terraform is installed on the Windows agent and that `AWS_credentials` is available, then inspect each stage's console output.
+- ALB listener configuration.
+- Target group health.
+- Apache2 service status.
+- Security group rules.
+- EC2 instance initialization logs.
 
-## 🔐 Security Notes
+### 7. Run Through Jenkins
 
-- Never commit AWS credentials, private keys, database passwords or sensitive variable files.
-- Protect the S3 state bucket; enable encryption and versioning where appropriate.
-- Restrict SSH ingress to trusted IP addresses or use a managed access method.
+Configure a Jenkins job to use this repository and its Jenkinsfile.
+
+Verify that Terraform is installed on the Windows agent and that the `AWS_credentials` entry is available.
+
+Run the pipeline and inspect the console output for each stage.
+
+## Security Notes
+
+- Never commit AWS credentials, private keys or database passwords.
+- Enable encryption and versioning for the S3 state bucket.
+- Restrict SSH ingress to trusted IP addresses.
 - Prefer allowing EC2 HTTP traffic only from the ALB security group.
-- Restrict RDS ingress to the intended application/web tier.
+- Restrict RDS ingress to the intended application tier.
 - Keep RDS in private subnets and disable public accessibility unless explicitly required.
 - Use least-privilege IAM permissions for Jenkins.
-- Review `terraform plan` before applying or destroying resources.
+- Review Terraform plans before applying or destroying resources.
 
-## 🧹 Cleanup
+## Cleanup
 
-When the environment is no longer needed, review planned deletions before destroying resources:
+When the environment is no longer needed, review planned deletions before destroying resources.
 
 ```bash
 terraform plan -destroy
 terraform destroy
 ```
 
-Run these commands from the root Terraform configuration directory. Manage the backend configuration separately. **Do not delete the S3 state bucket while any Terraform configuration still depends on it.**
+Run these commands from the root Terraform configuration directory.
 
-## 🎓 Learning Outcomes
+Manage the backend configuration separately.
 
+**Do not delete the S3 state bucket while any Terraform configuration still depends on it.**
+
+## Learning Outcomes
+
+- Three-tier AWS application architecture.
 - Terraform modules and remote state management.
-- AWS VPC, subnet and security-group design.
+- VPC, subnet and security group configuration.
 - EC2 provisioning and Apache2 web hosting.
 - ALB listeners, target groups and health checks.
-- RDS placement and private database networking.
+- Amazon RDS placement and private database networking.
 - Jenkins declarative pipelines and AWS credentials.
 - Infrastructure troubleshooting and Terraform outputs.
 
-## 🚀 Future Improvements
+## Future Improvements
 
 - Add automated website health checks.
-- Add a pipeline stage to deploy updated HTML to EC2.
-- Store database credentials in AWS Secrets Manager or Systems Manager Parameter Store.
-- Configure HTTPS using ACM and an ALB HTTPS listener.
+- Add a dedicated application deployment stage.
+- Store database credentials in AWS Secrets Manager.
+- Configure HTTPS using AWS Certificate Manager.
 - Add CloudWatch alarms for EC2 and ALB health.
-- Consider Auto Scaling if dynamic web capacity is required.
-- Add an approval step before production infrastructure changes.
+- Implement EC2 Auto Scaling.
+- Add a manual approval stage before production infrastructure changes.
+- Deploy the application tier in private subnets and use a controlled outbound access mechanism.
 
 ---
 
-## 👨‍💻 Author
+## Author
 
 **Mohammed Armaan Bakshi**
 
 - GitHub: [@Armaan-2005](https://github.com/Armaan-2005)
 
 ---
-<div align="center">
 
-**Built as a practical AWS, Terraform and Jenkins learning project.**
-
-</div>
+Built as a practical AWS, Terraform and Jenkins learning project.
